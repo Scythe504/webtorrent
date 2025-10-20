@@ -16,6 +16,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.HandleFunc("/", s.HelloWorldHandler)
 
+	r.HandleFunc("/get-video", s.startVideo)
+
+	r.HandleFunc("/watch-video/{videoId}", s.serveVideo)
+
 	return r
 }
 
