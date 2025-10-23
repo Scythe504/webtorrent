@@ -2,15 +2,17 @@ package redisdb
 
 import (
 	"context"
+	"log"
+
 	"github.com/redis/go-redis/v9"
 )
 
-type MagnetLink struct {
-	Id   string `json:"id" redis:"id"`
-	Link string `json:"link" redis:"link"`
+type Job struct {
+	Id   string `json:"id" redis:"id" db:"id"`
+	Link string `json:"link" redis:"link" db:"magnet_link"`
 }
 
-func (s *service) PublishJob(ctx context.Context, job MagnetLink) error {
+func (s *service) PublishJob(ctx context.Context, job Job) error {
 	_, err := s.db.XAdd(ctx, &redis.XAddArgs{
 		Stream: "job:magnet-link",
 		Values: map[string]any{
@@ -26,7 +28,8 @@ func (s *service) PublishJob(ctx context.Context, job MagnetLink) error {
 	return nil
 }
 
-func (s *service) ConsumeJob(ctx context.Context, consumerName string) (*MagnetLink, error) {
+func (s *service) ConsumeJob(ctx context.Context, consumerName string) (*Job, error) {
+	log.Println("[DEBUG]", ctx, consumerName, s.db)
 	res, err := s.db.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    consumerGroup,
 		Consumer: consumerName,
@@ -45,12 +48,12 @@ func (s *service) ConsumeJob(ctx context.Context, consumerName string) (*MagnetL
 
 	msg := res[0].Messages[0]
 
-	magnetLink := MagnetLink{
+	Job := Job{
 		Id:   msg.Values["id"].(string),
 		Link: msg.Values["link"].(string),
 	}
 
 	s.db.XAck(ctx, "job:magnet-link", consumerGroup, msg.ID)
 
-	return &magnetLink, nil
+	return &Job, nil
 }

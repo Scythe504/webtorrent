@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/scythe504/webtorrent/internal"
 	postgresdb "github.com/scythe504/webtorrent/internal/postgres-db"
 	redisdb "github.com/scythe504/webtorrent/internal/redis-db"
@@ -50,7 +49,7 @@ func (s *Server) startVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job := redisdb.MagnetLink{
+	job := redisdb.Job{
 		Id:   videoId,
 		Link: link.MagnetLink,
 	}
@@ -66,18 +65,18 @@ func (s *Server) startVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) serveVideo(w http.ResponseWriter, r *http.Request) {
-	videoId := mux.Vars(r)["videoId"]
-	log.Println("Getting VideoId Reader")
-	reader := s.torrentClient.GetReader(videoId)
-	if reader == nil {
-		log.Println("[ServeVideo] Magnet Link Doesnt exist")
-		http.Error(w, "Please insert magnet link again, content doesn't exist", http.StatusNotFound)
-		return
-	}
-	defer reader.Close()
+	// videoId := mux.Vars(r)["videoId"]
+	// log.Println("Getting VideoId Reader")
+	// // reader := s.torrentClient.GetReader(videoId)
+	// if reader == nil {
+	// 	log.Println("[ServeVideo] Magnet Link Doesnt exist")
+	// 	http.Error(w, "Please insert magnet link again, content doesn't exist", http.StatusNotFound)
+	// 	return
+	// }
+	// defer reader.Close()
 
 	rangeHeader := r.Header.Get("Range")
 	log.Println("Request: %s", rangeHeader)
 
-	http.ServeContent(w, r, "video.mkv", time.Now(), reader)
+	// http.ServeContent(w, r, "video.mkv", time.Now(), reader)	
 }

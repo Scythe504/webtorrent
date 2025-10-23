@@ -11,12 +11,10 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	postgresdb "github.com/scythe504/webtorrent/internal/postgres-db"
 	redisdb "github.com/scythe504/webtorrent/internal/redis-db"
-	"github.com/scythe504/webtorrent/internal/tor"
 )
 
 type Server struct {
 	port           int
-	torrentClient  *tor.Torrent
 	redisClient    redisdb.Service
 	postgresClient postgresdb.Service
 }
@@ -26,7 +24,6 @@ func NewServer() *http.Server {
 	ctx := context.Background()
 	NewServer := &Server{
 		port:           port,
-		torrentClient:  tor.New(),
 		redisClient:    redisdb.New(ctx),
 		postgresClient: postgresdb.New(),
 	}

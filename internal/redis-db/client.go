@@ -17,8 +17,8 @@ import (
 type Service interface {
 	Health() map[string]string
 
-	PublishJob(ctx context.Context, job MagnetLink) error
-	ConsumeJob(ctx context.Context, consumerName string) (*MagnetLink, error)
+	PublishJob(ctx context.Context, job Job) error
+	ConsumeJob(ctx context.Context, consumerName string) (*Job, error)
 }
 
 type service struct {

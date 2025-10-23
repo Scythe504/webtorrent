@@ -1,6 +1,9 @@
 package postgresdb
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type STATUS string
 
@@ -64,14 +67,26 @@ func (s *service) GetVideo(videoId string) (Video, error) {
 
 	return video, err
 }
-
-func (s *service) UpdateStatus(status STATUS, videoId string) error {
-	stmt := `
+func (s *service) UpdateStatus(status STATUS, videoId string, filePath *string) error {
+	query := `
 		UPDATE videos
 		SET status = $1
+		%s
 		WHERE id = $2
 	`
 
-	_, err := s.db.Exec(stmt, status, videoId)
+	// If filePath is provided, include it in the update
+	var stmt string
+	var args []any
+
+	if filePath != nil {
+		stmt = fmt.Sprintf(query, ", file_path = $3")
+		args = []any{status, videoId, *filePath}
+	} else {
+		stmt = fmt.Sprintf(query, "")
+		args = []any{status, videoId}
+	}
+
+	_, err := s.db.Exec(stmt, args...)
 	return err
 }

@@ -17,7 +17,7 @@ import (
 type Service interface {
 	GetVideo(videoId string) (Video, error)
 	CreateVideo(video Video) error
-	UpdateStatus(status STATUS, videoId string) error
+	UpdateStatus(status STATUS, videoId string, filePath *string) error
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
 	Health() map[string]string
@@ -31,21 +31,17 @@ type service struct {
 }
 
 var (
-	database   = os.Getenv("DB_DATABASE")
-	password   = os.Getenv("DB_PASSWORD")
-	username   = os.Getenv("DB_USERNAME")
-	port       = os.Getenv("DB_PORT")
-	host       = os.Getenv("DB_HOST")
-	schema     = os.Getenv("DB_SCHEMA")
-	conn_str   = os.Getenv("POSTGRES_CONN_URL")
-	dbInstance *service
+	database = os.Getenv("DB_DATABASE")
+	password = os.Getenv("DB_PASSWORD")
+	username = os.Getenv("DB_USERNAME")
+	port     = os.Getenv("DB_PORT")
+	host     = os.Getenv("DB_HOST")
+	schema   = os.Getenv("DB_SCHEMA")
+	conn_str = os.Getenv("POSTGRES_CONN_URL")
 )
 
 func New() Service {
 	// Reuse Connection
-	if dbInstance != nil {
-		return dbInstance
-	}
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
 
 	if conn_str != "" {
@@ -56,7 +52,7 @@ func New() Service {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dbInstance = &service{
+	dbInstance := &service{
 		db: db,
 	}
 	return dbInstance
