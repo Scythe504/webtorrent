@@ -20,6 +20,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.HandleFunc("/watch-video/{videoId}", s.serveVideo)
 
+	r.HandleFunc("/save-video", s.saveVideoForLater)
+
 	return r
 }
 

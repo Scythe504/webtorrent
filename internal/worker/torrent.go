@@ -44,10 +44,10 @@ func NewTorrentWorker(worker int) *TorrentWorker {
 	tw := &TorrentWorker{
 		rdb:        redisdb.New(ctx),
 		postgresdb: postgresdb.New(),
-		tor:        *tor.New(),
+		tor:        tor.New(),
 		st:         storage.New(ctx),
 		jobsChan:   jobsChan,
-		ctx: ctx,
+		ctx:        ctx,
 		numWorker:  worker,
 		errChan:    errChan,
 	}
@@ -107,7 +107,7 @@ func (tw *TorrentWorker) processJob(job redisdb.Job) {
 		return
 	}
 
-	filepath, err := tw.st.WriteStream(tw.ctx, job.Id, "file.mkv", reader)
+	filepath, err := tw.st.WriteStream(tw.ctx, job.Id, job.Id, reader)
 
 	if err != nil {
 		tw.errChan <- WorkerError{

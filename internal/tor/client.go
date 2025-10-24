@@ -11,7 +11,7 @@ type Torrent struct {
 	tor map[string]*torrent.Torrent
 }
 
-func New() *Torrent {
+func New() Torrent {
 	cfg := torrent.NewDefaultClientConfig()
 
 	cfg.DataDir = "./download/"
@@ -22,7 +22,7 @@ func New() *Torrent {
 		log.Fatal(err)
 	}
 
-	return &Torrent{
+	return Torrent{
 		cl:  client,
 		tor: make(map[string]*torrent.Torrent),
 	}
@@ -45,12 +45,28 @@ func (tr *Torrent) AddMagnet(id, magnetLink string) error {
 }
 
 func (tr *Torrent) GetReader(id string) torrent.Reader {
-	t :=  tr.tor[id]
+	t := tr.tor[id]
 
 	if t == nil {
 		return nil
 	}
-	
+
 	file := tr.tor[id].Files()[0]
+
 	return file.NewReader()
+}
+
+func (tr *Torrent) GetMagnetLink(videoId string) *string {
+	metainfo := tr.tor[videoId].Metainfo()
+
+	magnetLinkV2, err := metainfo.MagnetV2()
+
+	if err != nil {
+		log.Println("[GetMagnetLink]", magnetLinkV2, err)
+		return nil
+	}
+
+	magnetUri := magnetLinkV2.String()
+
+	return &magnetUri
 }

@@ -19,6 +19,7 @@ var (
 
 type Service interface {
 	WriteStream(ctx context.Context, id, objectName string, reader torrent.Reader) (string, error)
+	StatObject(ctx context.Context, objectName string) (int64, error)
 }
 
 type service struct {
