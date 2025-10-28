@@ -8,9 +8,9 @@ import (
 type STATUS string
 
 const (
-	PROCESSING  STATUS = "processing"
-	DOWNLOADING STATUS = "downloading"
-	FAILED      STATUS = "failed"
+	PROCESSING STATUS = "processing"
+	DOWNLOADED STATUS = "downloaded"
+	FAILED     STATUS = "failed"
 )
 
 type Video struct {

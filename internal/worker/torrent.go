@@ -45,7 +45,7 @@ func NewTorrentWorker(worker int) *TorrentWorker {
 		rdb:        redisdb.New(ctx),
 		postgresdb: postgresdb.New(),
 		tor:        tor.New(),
-		st:         storage.New(ctx),
+		st:         storage.New(),
 		jobsChan:   jobsChan,
 		ctx:        ctx,
 		numWorker:  worker,
@@ -68,7 +68,7 @@ func (tw *TorrentWorker) Start(consumerName string) {
 			continue
 		}
 
-		if err := tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADING, job.Id, nil); err != nil {
+		if err := tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADED, job.Id, nil); err != nil {
 			log.Printf("[%s] UpdateStatus DOWNLOADING failed: %v\n", consumerName, err)
 			continue
 		}
@@ -107,7 +107,7 @@ func (tw *TorrentWorker) processJob(job redisdb.Job) {
 		return
 	}
 
-	filepath, err := tw.st.WriteStream(tw.ctx, job.Id, job.Id, reader)
+	filepath, err := tw.tor.GetFileName(job.Id)
 
 	if err != nil {
 		tw.errChan <- WorkerError{
@@ -119,7 +119,19 @@ func (tw *TorrentWorker) processJob(job redisdb.Job) {
 		return
 	}
 
-	err = tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADING, job.Id, &filepath)
+	err = tw.st.SaveForLater(job.Id, reader)
+
+	if err != nil {
+		tw.errChan <- WorkerError{
+			JobId: job.Id,
+			Err:   err,
+			Phase: BUCKET_WRITE_ERR,
+		}
+
+		return
+	}
+
+	err = tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADED, job.Id, &filepath)
 	if err != nil {
 		tw.errChan <- WorkerError{
 			JobId: job.Id,

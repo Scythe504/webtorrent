@@ -11,16 +11,21 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	r := mux.NewRouter()
 
-	// Apply CORS middleware
 	r.Use(s.corsMiddleware)
 
-	r.HandleFunc("/", s.HelloWorldHandler)
+	// Public routes
+	r.HandleFunc("/", s.HelloWorldHandler).Methods("GET")
 
-	r.HandleFunc("/get-video", s.startVideo)
+	// Auth routes
 
-	r.HandleFunc("/watch-video/{videoId}", s.serveVideo)
+	// Video routes - public
+	video := r.PathPrefix("/video").Subrouter()
+	video.HandleFunc("/start", s.startVideo).Methods("POST", "OPTIONS")
+	video.HandleFunc("/stream/{videoId}", s.serveVideo).Methods("GET", "HEAD", "OPTIONS")
 
-	r.HandleFunc("/save-video", s.saveVideoForLater)
+	// Video routes - authenticated
+	videoAuth := video.PathPrefix("").Subrouter()
+	videoAuth.HandleFunc("/save/{videoId}", s.saveVideoForLater).Methods("POST")
 
 	return r
 }
@@ -28,13 +33,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 // CORS middleware
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// CORS Headers
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Wildcard allows all origins
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
 		w.Header().Set("Access-Control-Allow-Credentials", "false") // Credentials not allowed with wildcard origins
 
-		// Handle preflight OPTIONS requests
+		// Handle preflight OPTIONS
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

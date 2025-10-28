@@ -15,20 +15,20 @@ import (
 )
 
 type Server struct {
-	port           int
-	redisClient    redisdb.Service
-	postgresClient postgresdb.Service
-	t              tor.Torrent
+	port int
+	rdb  redisdb.Service
+	db   postgresdb.Service
+	t    tor.Torrent
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	ctx := context.Background()
 	NewServer := &Server{
-		port:           port,
-		redisClient:    redisdb.New(ctx),
-		postgresClient: postgresdb.New(),
-		t:              tor.New(),
+		port: port,
+		rdb:  redisdb.New(ctx),
+		db:   postgresdb.New(),
+		t:    tor.New(),
 	}
 
 	// Declare Server config

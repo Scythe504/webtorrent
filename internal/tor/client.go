@@ -1,6 +1,7 @@
 package tor
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/anacrolix/torrent"
@@ -69,4 +70,18 @@ func (tr *Torrent) GetMagnetLink(videoId string) *string {
 	magnetUri := magnetLinkV2.String()
 
 	return &magnetUri
+}
+
+func (tr *Torrent) GetFileName(videoId string) (string, error) {
+	t := tr.tor[videoId]
+	
+	if t == nil {
+		return "", fmt.Errorf("torrent not found for videoId: %s", videoId)
+	}
+	
+	if len(t.Files()) == 0 {
+		return "", fmt.Errorf("no files in torrent for videoId: %s", videoId)
+	}
+	
+	return t.Files()[0].DisplayPath(), nil
 }

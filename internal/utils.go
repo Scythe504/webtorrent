@@ -3,6 +3,7 @@ package internal
 import (
 	"crypto/rand"
 	"math/big"
+	"encoding/base64"
 )
 
 func RandomId() string {
@@ -17,4 +18,10 @@ func RandomId() string {
 	}
 
 	return shortCode
+}
+
+func GenerateSecureToken() string {
+    b := make([]byte, 32)
+    rand.Read(b)
+    return base64.URLEncoding.EncodeToString(b)
 }

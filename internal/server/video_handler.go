@@ -49,7 +49,7 @@ func (s *Server) saveVideoForLater(w http.ResponseWriter, r *http.Request) {
 		Deleted:    false,
 	}
 
-	if err = s.postgresClient.CreateVideo(video); err != nil {
+	if err = s.db.CreateVideo(video); err != nil {
 		log.Println("[StartVideo] Failed to generate video", err)
 		http.Error(w, "Failed to get video", http.StatusInternalServerError)
 		return
@@ -60,7 +60,7 @@ func (s *Server) saveVideoForLater(w http.ResponseWriter, r *http.Request) {
 		Link: *magnetLink,
 	}
 
-	if err = s.redisClient.PublishJob(r.Context(), job); err != nil {
+	if err = s.rdb.PublishJob(r.Context(), job); err != nil {
 		log.Println("[StartVideo] Failed to publish job", err)
 		http.Error(w, "Failed to get video", http.StatusInternalServerError)
 		return
@@ -103,7 +103,7 @@ func (s *Server) startVideo(w http.ResponseWriter, r *http.Request) {
 			Deleted:    false,
 		}
 
-		if err = s.postgresClient.CreateVideo(video); err != nil {
+		if err = s.db.CreateVideo(video); err != nil {
 			log.Println("[StartVideo] Failed to generate video", err)
 			http.Error(w, "Failed to get video", http.StatusInternalServerError)
 			return
@@ -114,7 +114,7 @@ func (s *Server) startVideo(w http.ResponseWriter, r *http.Request) {
 			Link: link.MagnetLink,
 		}
 
-		if err = s.redisClient.PublishJob(r.Context(), job); err != nil {
+		if err = s.rdb.PublishJob(r.Context(), job); err != nil {
 			log.Println("[StartVideo] Failed to publish job", err)
 			http.Error(w, "Failed to get video", http.StatusInternalServerError)
 			return

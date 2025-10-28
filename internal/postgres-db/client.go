@@ -15,6 +15,7 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
+	// VideoMethods
 	GetVideo(videoId string) (Video, error)
 	CreateVideo(video Video) error
 	UpdateStatus(status STATUS, videoId string, filePath *string) error

@@ -1,55 +1,63 @@
 package storage
 
 import (
-	"context"
+	"fmt"
 	"io"
 	"log"
+	"path/filepath"
 
 	"github.com/anacrolix/torrent"
-	"github.com/minio/minio-go/v7"
 )
 
-func (s *service) WriteStream(ctx context.Context, id, objectName string, reader torrent.Reader) (string, error) {
-	bucketName := "webtorrent-test"
+func (s *service) SaveForLater(videoId string, reader torrent.Reader) error {
+	log.Printf("[SaveForLater] Starting full download for video: %s", videoId)
 
-	pipeReader, pipeWriter := io.Pipe()
+	// Read till EOF to force torrent to download entire file
+	buf := make([]byte, 5*1024*1024) // 5MB buffer
+	totalRead := int64(0)
 
-	go func() {
-		defer pipeWriter.Close()
-		buf := make([]byte, 5*1024*1024) // 5MB chunks
-		for {
-			n, err := reader.Read(buf)
-			if n > 0 {
-				log.Printf("[WriteStream] Read %d bytes from torrent", n)
-				pipeWriter.Write(buf[:n])
-			}
-			if err != nil {
-				if err != io.EOF {
-					log.Printf("[WriteStream] torrent read error: %v", err)
-					pipeWriter.CloseWithError(err)
-				}
-				break
-			}
+	for {
+		n, err := reader.Read(buf)
+		totalRead += int64(n)
+
+		if n > 0 {
+			log.Printf("[SaveForLater] Downloaded: %d MB", totalRead/(1024*1024))
 		}
-	}()
 
-	info, err := s.storage.PutObject(ctx, bucketName, objectName, pipeReader, -1, minio.PutObjectOptions{})
+		if err == io.EOF {
+			log.Printf("[SaveForLater] Complete! Total: %d MB", totalRead/(1024*1024))
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("download failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *service) GetFilePath(videoId string) (string, error) {
+	// Torrent files are saved by anacrolix with their original filename
+	// You'll need to track the actual filename in your database
+	// For now, pattern match to find the file
+
+	pattern := filepath.Join(s.dataDir, "*")
+	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		log.Printf("[WriteStream] MinIO upload error: %v", err)
 		return "", err
 	}
 
-	return info.Key, nil
-}
-
-// Add this method to your storage service
-func (s *service) StatObject(ctx context.Context, objectName string) (int64, error) {
-	bucketName := "webtorrent-test"
-
-	objInfo, err := s.storage.StatObject(ctx, bucketName, objectName, minio.StatObjectOptions{})
-	if err != nil {
-		return 0, err
+	// This is simplified - you should store the actual filename in DB
+	// and look it up by videoId
+	if len(matches) > 0 {
+		return matches[0], nil
 	}
 
-	return objInfo.Size, nil
+	return "", fmt.Errorf("file not found for video: %s", videoId)
+}
+
+func (s *service) FileExists(videoId string) bool {
+	_, err := s.GetFilePath(videoId)
+	return err == nil
 }

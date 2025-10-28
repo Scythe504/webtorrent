@@ -1,57 +1,31 @@
 package storage
 
 import (
-	"context"
-	"log"
 	"os"
 
 	"github.com/anacrolix/torrent"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-)
-
-var (
-	endpoint        = os.Getenv("STORAGE_ENDPOINT")
-	accessKeyId     = os.Getenv("STORAGE_ACCESSKEY")
-	secretAccessKey = os.Getenv("STORAGE_SECRET_ACCESSKEY")
-	useSSL          = false
 )
 
 type Service interface {
-	WriteStream(ctx context.Context, id, objectName string, reader torrent.Reader) (string, error)
-	StatObject(ctx context.Context, objectName string) (int64, error)
+	SaveForLater(videoId string, reader torrent.Reader) error
+	GetFilePath(videoId string) (string, error)
+	FileExists(videoId string) bool
 }
 
 type service struct {
-	storage *minio.Client
+	dataDir string
 }
 
-func New(ctx context.Context) Service {
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyId, secretAccessKey, ""),
-		Secure: useSSL,
-	})
-
-	if err != nil {
-		log.Fatal(err)
+func New() Service {
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "./download"
 	}
 
-	bucketName := "webtorrent-test"
-	location := "local"
+	// Ensure directory exists
+	os.MkdirAll(dataDir, 0755)
 
-	err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: location})
-	if err != nil {
-		exists, errBucketExists := client.BucketExists(ctx, bucketName)
-		if errBucketExists == nil && exists {
-			log.Println("We already have a bucket with the name", bucketName)
-		} else {
-			log.Fatal(err)
-		}
-	} else {
-		log.Printf("Bucket %q created successfully\n", bucketName)
+	return &service{
+		dataDir: dataDir,
 	}
-
-	st := &service{storage: client}
-
-	return st
 }
