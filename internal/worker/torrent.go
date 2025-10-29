@@ -44,7 +44,7 @@ func NewTorrentWorker(worker int) *TorrentWorker {
 	tw := &TorrentWorker{
 		rdb:        redisdb.New(ctx),
 		postgresdb: postgresdb.New(),
-		tor:        tor.New(),
+		tor:        tor.New(42070),
 		st:         storage.New(),
 		jobsChan:   jobsChan,
 		ctx:        ctx,

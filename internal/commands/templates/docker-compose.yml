@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  api:
+    image: yourusername/fluxstream-api:latest
+    environment:
+      - PORT=8080
+      - APP_ENV=local
+      - PUBLIC_URL=http://localhost:8080
+      - REDIS_DB_ADDRESS=redis
+      - REDIS_DB_PORT=6379
+      - REDIS_DB_PASSWORD=
+      - REDIS_DB_DATABASE=0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=fluxstream
+      - DB_USERNAME=fluxstream
+      - DB_PASSWORD=fluxstream
+      - DB_SCHEMA=public
+      - FRONTEND_URL=http://localhost:3000
+    ports:
+      - "8080:8080"
+    volumes:
+      - "{{DOWNLOAD_PATH}}:/app/fluxstream/download"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - fluxstream
+
+  worker:
+    image: yourusername/fluxstream-worker:latest
+    environment:
+      - REDIS_DB_ADDRESS=redis
+      - REDIS_DB_PORT=6379
+      - REDIS_DB_PASSWORD=
+      - REDIS_DB_DATABASE=0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=fluxstream
+      - DB_USERNAME=fluxstream
+      - DB_PASSWORD=fluxstream
+      - DB_SCHEMA=public
+    volumes:
+      - "{{DOWNLOAD_PATH}}:/app/fluxstream/download"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - fluxstream
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: fluxstream
+      POSTGRES_PASSWORD: fluxstream
+      POSTGRES_DB: fluxstream
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - fluxstream
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - redisdata:/data
+    networks:
+      - fluxstream
+
+networks:
+  fluxstream:
+
+volumes:
+  pgdata:

@@ -26,8 +26,9 @@ download/
 # .env file
 .env
 
-# Project build
+# Project build`
 main
+fluxstream
 *templ.go
 
 # OS X generated file

@@ -3,6 +3,8 @@ package tor
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/anacrolix/torrent"
 )
@@ -12,13 +14,27 @@ type Torrent struct {
 	tor map[string]*torrent.Torrent
 }
 
-func New() Torrent {
+func New(port int) Torrent {
 	cfg := torrent.NewDefaultClientConfig()
+	cfg.ListenPort = port
 
-	cfg.DataDir = "./download/"
+	// Try environment override first (for flexibility)
+	dataDir := os.Getenv("DOWNLOAD_PATH")
+	if dataDir == "" {
+		// Default to Docker path if not specified
+		dataDir = "/app/fluxstream/download"
+
+		// Fallback for local dev environments
+		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+			if home, err := os.UserHomeDir(); err == nil {
+				dataDir = filepath.Join(home, ".local", "share", "fluxstream", "downloads")
+			}
+		}
+	}
+
+	cfg.DataDir = dataDir
 
 	client, err := torrent.NewClient(cfg)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,6 +44,7 @@ func New() Torrent {
 		tor: make(map[string]*torrent.Torrent),
 	}
 }
+
 
 func (tr *Torrent) AddMagnet(id, magnetLink string) error {
 	t, err := tr.cl.AddMagnet(magnetLink)

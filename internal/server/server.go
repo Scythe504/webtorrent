@@ -28,7 +28,7 @@ func NewServer() *http.Server {
 		port: port,
 		rdb:  redisdb.New(ctx),
 		db:   postgresdb.New(),
-		t:    tor.New(),
+		t:    tor.New(42069),
 	}
 
 	// Declare Server config
