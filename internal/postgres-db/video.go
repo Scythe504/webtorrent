@@ -8,9 +8,10 @@ import (
 type STATUS string
 
 const (
-	PROCESSING STATUS = "processing"
-	DOWNLOADED STATUS = "downloaded"
-	FAILED     STATUS = "failed"
+	PROCESSING  STATUS = "processing"
+	DOWNLOADING STATUS = "downloading"
+	DOWNLOADED  STATUS = "downloaded"
+	FAILED      STATUS = "failed"
 )
 
 type Video struct {
@@ -67,6 +68,46 @@ func (s *service) GetVideo(videoId string) (Video, error) {
 
 	return video, err
 }
+
+func (s *service) GetAllVideos() ([]Video, error) {
+	stmt := `
+		SELECT 
+			id, 
+			magnet_link, 
+			status, 
+			file_path, 
+			created_at, 
+			deleted
+		FROM videos
+		WHERE deleted = FALSE
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var videos []Video
+
+	for rows.Next() {
+		var v Video
+		err := rows.Scan(&v.Id, &v.MagnetLink, &v.Status, &v.FilePath, &v.CreatedAt, &v.Deleted)
+		if err != nil {
+			return nil, err
+		}
+		videos = append(videos, v)
+	}
+
+	// handle possible iteration error
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return videos, nil
+}
+
 func (s *service) UpdateStatus(status STATUS, videoId string, filePath *string) error {
 	query := `
 		UPDATE videos

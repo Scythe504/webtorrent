@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	postgresdb "github.com/scythe504/webtorrent/internal/postgres-db"
@@ -30,10 +31,12 @@ type WorkerError struct {
 type ErrPhase string
 
 const (
-	MAGNET           ErrPhase = "magnet_link_add"
-	UPDATE_FAILED    ErrPhase = "update_failed"
-	DOWNLOAD_FAILED  ErrPhase = "download_failed"
-	BUCKET_WRITE_ERR ErrPhase = "bucket_write_err"
+	MAGNET              ErrPhase = "magnet_link_add"
+	UPDATE_FAILED       ErrPhase = "update_failed"
+	DOWNLOAD_FAILED     ErrPhase = "download_failed"
+	BUCKET_WRITE_ERR    ErrPhase = "bucket_write_err"
+	TORRENT_CLEANUP_ERR ErrPhase = "torrent_cleanup_err"
+	METADATA_FETCH_ERR  ErrPhase = "metadata_fetch_err"
 )
 
 func NewTorrentWorker(worker int) *TorrentWorker {
@@ -68,7 +71,7 @@ func (tw *TorrentWorker) Start(consumerName string) {
 			continue
 		}
 
-		if err := tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADED, job.Id, nil); err != nil {
+		if err := tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADING, job.Id, nil); err != nil {
 			log.Printf("[%s] UpdateStatus DOWNLOADING failed: %v\n", consumerName, err)
 			continue
 		}
@@ -84,55 +87,63 @@ func (tw *TorrentWorker) DownloadWorker(i int) {
 }
 
 func (tw *TorrentWorker) processJob(job redisdb.Job) {
-	err := tw.tor.AddMagnet(job.Id, job.Link)
-
-	if err != nil {
+	// 1. Add torrent
+	if err := tw.tor.AddMagnet(job.Id, job.Link); err != nil {
 		tw.errChan <- WorkerError{
 			JobId: job.Id,
 			Err:   err,
 			Phase: MAGNET,
 		}
-
 		return
 	}
 
+	defer func() {
+		// Cleanup torrent connection
+		if err := tw.tor.CleanupTorrent(job.Id); err != nil {
+			tw.errChan <- WorkerError{
+				JobId: job.Id,
+				Err:   err,
+				Phase: TORRENT_CLEANUP_ERR,
+			}
+		}
+	}()
+
+	// 4. Get file reader
 	reader := tw.tor.GetReader(job.Id)
 	if reader == nil {
 		tw.errChan <- WorkerError{
 			JobId: job.Id,
-			Err:   err,
+			Err:   fmt.Errorf("torrent reader not found"),
 			Phase: DOWNLOAD_FAILED,
 		}
+		return
+	}
+	defer (*reader).Close()
 
+	metadata, err := tw.tor.GetMetadata(job.Id)
+
+	if err != nil {
+		tw.errChan <- WorkerError{
+			JobId: job.Id,
+			Err:   err,
+			Phase: METADATA_FETCH_ERR,
+		}
 		return
 	}
 
-	filepath, err := tw.tor.GetFileName(job.Id)
-
+	// 5. Save video file to storage
+	filepath, err := tw.st.SaveForLater(job.Id, *reader, *metadata)
 	if err != nil {
 		tw.errChan <- WorkerError{
 			JobId: job.Id,
 			Err:   err,
 			Phase: BUCKET_WRITE_ERR,
 		}
-
 		return
 	}
 
-	err = tw.st.SaveForLater(job.Id, reader)
-
-	if err != nil {
-		tw.errChan <- WorkerError{
-			JobId: job.Id,
-			Err:   err,
-			Phase: BUCKET_WRITE_ERR,
-		}
-
-		return
-	}
-
-	err = tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADED, job.Id, &filepath)
-	if err != nil {
+	// 6. Update DB with file path
+	if err := tw.postgresdb.UpdateStatus(postgresdb.DOWNLOADED, job.Id, &filepath); err != nil {
 		tw.errChan <- WorkerError{
 			JobId: job.Id,
 			Err:   err,
@@ -141,7 +152,6 @@ func (tw *TorrentWorker) processJob(job redisdb.Job) {
 		return
 	}
 
-	// TODO: Cleanup torrent connection
 }
 
 func (tw *TorrentWorker) HandleErrors() {

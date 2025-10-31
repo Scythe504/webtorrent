@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -14,11 +15,16 @@ import (
 	"github.com/scythe504/webtorrent/internal/tor"
 )
 
+type StreamResolver struct {
+	cache sync.Map
+}
+
 type Server struct {
 	port int
 	rdb  redisdb.Service
 	db   postgresdb.Service
 	t    tor.Torrent
+	streamResolver *StreamResolver
 }
 
 func NewServer() *http.Server {
@@ -29,6 +35,7 @@ func NewServer() *http.Server {
 		rdb:  redisdb.New(ctx),
 		db:   postgresdb.New(),
 		t:    tor.New(42069),
+		streamResolver: &StreamResolver{ cache: sync.Map{}},
 	}
 
 	// Declare Server config

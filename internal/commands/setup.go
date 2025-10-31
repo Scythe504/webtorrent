@@ -13,16 +13,24 @@ var dockerComposeTemplate string
 
 func Setup() error {
 	if !IsDockerInstalled() {
+		printError("Docker is not installed.")
+		fmt.Println("\nPlease install Docker first:")
+		printInfo("  https://docs.docker.com/desktop/#next-steps")
+		printInfo("  https://docs.docker.com/engine/")
 		return fmt.Errorf("docker not installed")
 	}
 
 	if err := DockerInfo(); err != nil {
-		return fmt.Errorf("docker daemon not running — please ensure Docker is started: %v", err)
+		printError("Docker daemon is not running.")
+		fmt.Println("\nPlease start Docker and try again:")
+		fmt.Println("  - macOS/Windows: Open Docker Desktop")
+		fmt.Println("  - Linux: sudo systemctl start docker")
+		return fmt.Errorf("docker daemon not running: %v", err)
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get home directory: %v", err)
 	}
 
 	configdir := filepath.Join(homeDir, ".config", "fluxstream")
@@ -31,16 +39,21 @@ func Setup() error {
 	}
 
 	datadir := filepath.Join(homeDir, ".local", "share", "fluxstream", "downloads")
-	if err := os.MkdirAll(datadir, 0o750); err != nil {
-		return fmt.Errorf("failed to create data directories: %v", err)
+	if err := os.MkdirAll(datadir, 0o755); err != nil {
+		return fmt.Errorf("failed to create data directory: %v", err)
 	}
 
 	replaced := strings.ReplaceAll(dockerComposeTemplate, "{{DOWNLOAD_PATH}}", datadir)
-	if err := os.WriteFile(filepath.Join(configdir, "docker-compose.yml"), []byte(replaced), 0o600); err != nil {
+	composeFile := filepath.Join(configdir, "docker-compose.yml")
+	if err := os.WriteFile(composeFile, []byte(replaced), 0o644); err != nil {
 		return fmt.Errorf("failed to write docker-compose.yml: %v", err)
 	}
 
-	fmt.Println("Fluxstream setup complete!")
-	fmt.Printf("Config: %s\nData: %s\n", configdir, datadir)
+	printSuccess("FluxStream setup complete!")
+	fmt.Printf("\n%s %s\n", colorize(colorBlue, "Configuration:"), configdir)
+	fmt.Printf("%s %s\n", colorize(colorBlue, "Downloads:"), datadir)
+	fmt.Printf("\n%s\n", colorize(colorGreen, "Ready to start! Run: fluxstream start"))
+	fmt.Printf("\n%s\n", colorize(colorCyan, "For more info: https://docs.fluxstream.app"))
+
 	return nil
 }

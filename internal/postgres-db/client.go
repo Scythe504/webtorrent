@@ -18,6 +18,7 @@ type Service interface {
 	// VideoMethods
 	GetVideo(videoId string) (Video, error)
 	CreateVideo(video Video) error
+	GetAllVideos() ([]Video, error)
 	UpdateStatus(status STATUS, videoId string, filePath *string) error
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
