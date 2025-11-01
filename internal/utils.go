@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"strings"
 )
@@ -56,4 +57,42 @@ func GetFileMetadata(path string) (os.FileInfo, error) {
 		return nil, fmt.Errorf("failed to stat %s: %w", path, err)
 	}
 	return info, nil
+}
+
+// getLocalIP finds your LAN IPv4 address (e.g. 192.168.x.x or 10.x.x.x)
+func GetLocalIP() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "127.0.0.1"
+	}
+
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue
+			}
+			return ip.String()
+		}
+	}
+	return "127.0.0.1"
 }

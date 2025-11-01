@@ -13,7 +13,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:     "fluxstream",
-	Short:   "Fluxstream - Torrent media streamer",
+	Short:   "fluxstream - Torrent media streamer",
 	Long:    `fluxstream-cli is a tool for running the fluxstream server and web on your desktop`,
 	Version: version,
 }
@@ -34,9 +34,27 @@ var setupCmd = &cobra.Command{
 	},
 }
 
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Shows the status of the server whether running or not",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return commands.Status()
+	},
+}
+
+var whereCmd = &cobra.Command{
+	Use:   "where",
+	Short: "Prints the url for the web app",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return commands.Where()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(setupCmd)
+	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(whereCmd)
 }
 
 func main() {
