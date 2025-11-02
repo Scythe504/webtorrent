@@ -48,12 +48,10 @@ func Start() error {
 	}
 
 	// Start FluxStream containers
-	cmd := exec.Command("docker-compose", "-f", dockerComposeFilePath, "up")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	err = DockerCompose("-d")
 
 	printInfo("Running Docker Compose...")
-	err = cmd.Run()
+
 	if err != nil {
 		printError(fmt.Sprintf("Failed to start FluxStream: %v", err))
 		return err
@@ -205,6 +203,7 @@ func PrintAccessURLs(port string) {
 	printInfo("FluxStream web interface available at:")
 	fmt.Printf("  %s %s\n", colorize(colorCyan, "Local:"), colorize(colorGreen, localURL))
 	fmt.Printf("  %s %s\n\n", colorize(colorCyan, "Network:"), colorize(colorGreen, lanURL))
+	fmt.Printf(" %s \n\n", colorize(colorYellow, "WARN: If Network IP is 172.*, it will not open in other devices."))
 }
 
 func Where() error {
@@ -244,7 +243,7 @@ func Where() error {
 	if len(output) == 0 {
 		printError("FluxStream is not running.")
 		fmt.Println("Run it using:")
-		printInfo("  fluxstream start")
+		printInfo("fluxstream start")
 		return nil
 	}
 
