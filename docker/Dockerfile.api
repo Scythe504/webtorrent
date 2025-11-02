@@ -1,20 +1,34 @@
+# --- Stage 1: Builder ---
 FROM golang:1.25.2-alpine AS builder
 
 WORKDIR /app/fluxstream
 
-
 COPY go.mod go.sum ./
-
 RUN go mod download
 
 COPY . .
 
+# Build API binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api ./cmd/api
 
-FROM scratch
+# Install goose (for migrations)
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 
+# --- Stage 2: API Runtime ---
+FROM scratch AS api
 COPY --from=builder /out/api /api
-
 EXPOSE 8080
-
 CMD ["/api"]
+
+# --- Stage 3: Migration Runtime ---
+FROM alpine:latest AS migrate
+WORKDIR /app/fluxstream
+
+# Copy goose binary
+COPY --from=builder /go/bin/goose /usr/local/bin/goose
+
+# Copy migrations
+COPY ./migrations ./migrations
+
+# Default command (can be overridden in docker-compose)
+CMD ["goose", "up"]

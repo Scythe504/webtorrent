@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/scythe504/webtorrent/internal"
@@ -86,32 +87,55 @@ func Setup() error {
 		return fmt.Errorf("docker daemon not running: %v", err)
 	}
 
-	homeDir, err := os.UserHomeDir()
+	// Base config dir (OS-appropriate)
+	baseConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %v", err)
+		return fmt.Errorf("failed to get config directory: %v", err)
 	}
 
-	configdir := filepath.Join(homeDir, ".config", "fluxstream")
-	if err := os.MkdirAll(configdir, 0o700); err != nil {
+	// App-specific config dir
+	configDir := filepath.Join(baseConfigDir, "fluxstream")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create config directory: %v", err)
 	}
 
-	datadir := filepath.Join(homeDir, ".local", "share", "fluxstream", "downloads")
-	if err := os.MkdirAll(datadir, 0o755); err != nil {
+	// Determine app data directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %v", err)
+	}
+
+	var dataDir string
+	switch runtime.GOOS {
+	case "windows":
+		dataDir = filepath.Join(homeDir, "AppData", "Roaming", "Fluxstream", "downloads")
+	case "darwin":
+		dataDir = filepath.Join(homeDir, "Library", "Application Support", "Fluxstream", "downloads")
+	default:
+		dataDir = filepath.Join(homeDir, ".local", "share", "fluxstream", "downloads")
+	}
+
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create data directory: %v", err)
 	}
 
-	replaced := strings.ReplaceAll(dockerComposeTemplate, "{{DOWNLOAD_PATH}}", datadir)
-	composeFile := filepath.Join(configdir, "docker-compose.yml")
+	// Normalize Windows paths to use forward slashes for Docker
+	normalizedDataDir := strings.ReplaceAll(dataDir, "\\", "/")
+
+	// Replace the placeholder in docker-compose.yml template
+	replaced := strings.ReplaceAll(dockerComposeTemplate, "{{DOWNLOAD_PATH}}", normalizedDataDir)
+
+	composeFile := filepath.Join(configDir, "docker-compose.yml")
+
 	if err := os.WriteFile(composeFile, []byte(replaced), 0o644); err != nil {
 		return fmt.Errorf("failed to write docker-compose.yml: %v", err)
 	}
 
 	printSuccess("FluxStream setup complete!")
-	fmt.Printf("\n%s %s\n", colorize(colorBlue, "Configuration:"), configdir)
-	fmt.Printf("%s %s\n", colorize(colorBlue, "Downloads:"), datadir)
+	fmt.Printf("\n%s %s\n", colorize(colorBlue, "Config file:"), composeFile)
+	fmt.Printf("%s %s\n", colorize(colorBlue, "Downloads:"), normalizedDataDir)
 	fmt.Printf("\n%s\n", colorize(colorGreen, "Ready to start! Run: fluxstream start"))
-	fmt.Printf("\n%s\n", colorize(colorCyan, "For more info: https://docs.fluxstream.app"))
+	fmt.Printf("\n%s\n", colorize(colorCyan, "Docs: https://docs.fluxstream.app"))
 
 	return nil
 }
@@ -187,7 +211,7 @@ func Where() error {
 	fmt.Println()
 
 	// 1. Check if Docker is installed
-	if IsDockerInstalled() {
+	if !IsDockerInstalled() {
 		printError("Docker is not installed.")
 		fmt.Println("\nPlease install Docker first:")
 		printInfo("  https://docs.docker.com/desktop/#next-steps")

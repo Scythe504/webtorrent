@@ -1,7 +1,7 @@
 package server
 
 import (
-	"context"
+	_ "context"
 	"fmt"
 	"net/http"
 	"os"
@@ -20,22 +20,22 @@ type StreamResolver struct {
 }
 
 type Server struct {
-	port int
-	rdb  redisdb.Service
-	db   postgresdb.Service
-	t    tor.Torrent
+	port           int
+	rdb            redisdb.Service
+	db             postgresdb.Service
+	t              tor.Torrent
 	streamResolver *StreamResolver
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	ctx := context.Background()
+	// ctx := context.Background()
 	NewServer := &Server{
 		port: port,
-		rdb:  redisdb.New(ctx),
-		db:   postgresdb.New(),
-		t:    tor.New(42069),
-		streamResolver: &StreamResolver{ cache: sync.Map{}},
+		// rdb:  redisdb.New(ctx),
+		// db:   postgresdb.New(),
+		t:              tor.New(42069),
+		streamResolver: &StreamResolver{cache: sync.Map{}},
 	}
 
 	// Declare Server config

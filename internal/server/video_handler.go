@@ -7,12 +7,11 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/anacrolix/torrent"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/scythe504/webtorrent/internal"
 	postgresdb "github.com/scythe504/webtorrent/internal/postgres-db"
 	redisdb "github.com/scythe504/webtorrent/internal/redis-db"
@@ -55,6 +54,13 @@ func (s *Server) saveVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = s.db.CreateVideo(video); err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			if pgErr.Code == "23505" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf("{ \"video_id\": \"%s\", \"message\": \"%s\" }", link.VideoId, "Video is being processed and being saved do not close the fluxstream app")))
+				return
+			}
+		}
 		log.Println("[StartVideo] Failed to generate video", err)
 		http.Error(w, "Failed to get video", http.StatusInternalServerError)
 		return
@@ -129,7 +135,7 @@ func (s *Server) createVideo(w http.ResponseWriter, r *http.Request) {
 func (r *StreamResolver) Resolve(
 	videoId string,
 	getReader func(string) *torrent.Reader,
-	getVideo func(string) (postgresdb.Video, error),
+	// getVideo func(string) (postgresdb.Video, error),
 	getMetadata func(string) (*tor.FileMetadata, error),
 ) (io.ReadSeeker, *tor.FileMetadata, error) {
 
@@ -149,45 +155,53 @@ func (r *StreamResolver) Resolve(
 		return *reader, meta, nil
 	}
 
+	return nil, &tor.FileMetadata{
+		Name:      "unknown_video",
+		Path:      "",
+		Length:    0,
+		Extension: ".mp4",
+		IsVideo:   true,
+	}, fmt.Errorf("couldn't get reader")
+
 	// Try cache or database
-	var video postgresdb.Video
-	if val, ok := r.cache.Load(videoId); ok {
-		video = val.(postgresdb.Video)
-	} else {
-		v, err := getVideo(videoId)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get video from DB: %w", err)
-		}
-		video = v
-		r.cache.Store(videoId, v)
-	}
+	// var video postgresdb.Video
+	// if val, ok := r.cache.Load(videoId); ok {
+	// 	video = val.(postgresdb.Video)
+	// } else {
+	// 	v, err := getVideo(videoId)
+	// 	if err != nil {
+	// 		return nil, nil, fmt.Errorf("failed to get video from DB: %w", err)
+	// 	}
+	// 	video = v
+	// 	r.cache.Store(videoId, v)
+	// }
 
-	// Try to open local file if path exists
-	if video.FilePath != "" && internal.FileExists(video.FilePath) {
-		f, err := os.Open(video.FilePath)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to open file: %w", err)
-		}
+	// // Try to open local file if path exists
+	// if video.FilePath != "" && internal.FileExists(video.FilePath) {
+	// 	f, err := os.Open(video.FilePath)
+	// 	if err != nil {
+	// 		return nil, nil, fmt.Errorf("failed to open file: %w", err)
+	// 	}
 
-		info, err := os.Stat(video.FilePath)
-		if err != nil {
-			f.Close()
-			return nil, nil, fmt.Errorf("failed to stat file: %w", err)
-		}
+	// 	info, err := os.Stat(video.FilePath)
+	// 	if err != nil {
+	// 		f.Close()
+	// 		return nil, nil, fmt.Errorf("failed to stat file: %w", err)
+	// 	}
 
-		meta := &tor.FileMetadata{
-			Name:      filepath.Base(video.FilePath),
-			Path:      video.FilePath,
-			Length:    info.Size(),
-			Extension: filepath.Ext(video.FilePath),
-			IsVideo:   internal.IsVideoFile(filepath.Ext(video.FilePath)),
-		}
+	// 	meta := &tor.FileMetadata{
+	// 		Name:      filepath.Base(video.FilePath),
+	// 		Path:      video.FilePath,
+	// 		Length:    info.Size(),
+	// 		Extension: filepath.Ext(video.FilePath),
+	// 		IsVideo:   internal.IsVideoFile(filepath.Ext(video.FilePath)),
+	// 	}
 
-		return f, meta, nil
-	}
+	// 	return f, meta, nil
+	// }
 
 	// Nothing found
-	return nil, nil, os.ErrNotExist
+	// return nil, nil, os.ErrNotExist
 }
 
 func (s *Server) getVideoMetadata(w http.ResponseWriter, r *http.Request) {
@@ -202,31 +216,31 @@ func (s *Server) getVideoMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fallback: get from DB and disk
-	video, err := s.db.GetVideo(videoId)
-	if err != nil {
-		http.Error(w, "video not found", http.StatusNotFound)
-		return
-	}
+	// // Fallback: get from DB and disk
+	// video, err := s.db.GetVideo(videoId)
+	// if err != nil {
+	// 	http.Error(w, "video not found", http.StatusNotFound)
+	// 	return
+	// }
 
-	if video.FilePath == "" || !internal.FileExists(video.FilePath) {
-		http.Error(w, "metadata unavailable", http.StatusNotFound)
-		return
-	}
+	// if video.FilePath == "" || !internal.FileExists(video.FilePath) {
+	// 	http.Error(w, "metadata unavailable", http.StatusNotFound)
+	// 	return
+	// }
 
-	info, err := os.Stat(video.FilePath)
-	if err != nil {
-		http.Error(w, "failed to read file metadata", http.StatusInternalServerError)
-		return
-	}
+	// info, err := os.Stat(video.FilePath)
+	// if err != nil {
+	// 	http.Error(w, "failed to read file metadata", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	meta = &tor.FileMetadata{
-		Name:      filepath.Base(video.FilePath),
-		Path:      video.FilePath,
-		Length:    info.Size(),
-		Extension: filepath.Ext(video.FilePath),
-		IsVideo:   internal.IsVideoFile(filepath.Ext(video.FilePath)),
-	}
+	// meta = &tor.FileMetadata{
+	// 	Name:      filepath.Base(video.FilePath),
+	// 	Path:      video.FilePath,
+	// 	Length:    info.Size(),
+	// 	Extension: filepath.Ext(video.FilePath),
+	// 	IsVideo:   internal.IsVideoFile(filepath.Ext(video.FilePath)),
+	// }
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(meta)
@@ -239,7 +253,7 @@ func (s *Server) streamVideo(w http.ResponseWriter, r *http.Request) {
 	reader, meta, err := s.streamResolver.Resolve(
 		videoId,
 		s.t.GetReader, // Torrent getter
-		s.db.GetVideo, // DB getter
+		// s.db.GetVideo, // DB getter
 		s.t.GetMetadata,
 	)
 	if err != nil {

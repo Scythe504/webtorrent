@@ -27,7 +27,17 @@ type FileMetadata struct {
 
 func New(port int) Torrent {
 	cfg := torrent.NewDefaultClientConfig()
+
+	// Networking
 	cfg.ListenPort = port
+	cfg.DisableIPv6 = true
+	cfg.DisableUTP = false
+	cfg.DisableAggressiveUpload = true
+	cfg.NoUpload = false
+	cfg.Seed = true
+
+	// Performance tuning
+	cfg.MinDialTimeout = 5 * time.Second
 
 	// Try environment override first (for flexibility)
 	dataDir := os.Getenv("DOWNLOAD_PATH")
@@ -98,14 +108,13 @@ func (tr *Torrent) GetReader(id string) *torrent.Reader {
 	// Ensure torrent exists
 	t, ok := tr.tor[id]
 	if !ok || t == nil {
-		log.Printf("[GetReader] torrent not found for id: %s", id)
 		return nil
 	}
 
 	// Wait for metadata
 	select {
 	case <-t.GotInfo():
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		log.Printf("[GetReader] timeout waiting for metadata: %s", id)
 		return nil
 	}
