@@ -7,9 +7,10 @@ mkdir -p "$INSTALL_DIR"
 
 echo "Detecting latest version..."
 LATEST_TAG=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+VERSION="${LATEST_TAG#v}"  # remove leading 'v' if present
 echo "Latest version: $LATEST_TAG"
 
-# Detect OS
+# Detect OS and architecture
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
@@ -18,13 +19,13 @@ case "$ARCH" in
   aarch64) ARCH="arm64" ;;
 esac
 
-FILE="fluxstream_${LATEST_TAG}_${OS}_${ARCH}.tar.gz"
+FILE="fluxstream_${VERSION}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${FILE}"
 
-echo "⬇Downloading $FILE ..."
+echo "⬇️ Downloading $FILE ..."
 curl -L -o /tmp/"$FILE" "$URL"
 
-echo "Extracting to $INSTALL_DIR ..."
+echo "📦 Extracting to $INSTALL_DIR ..."
 tar -xzf /tmp/"$FILE" -C "$INSTALL_DIR"
 
 chmod +x "$INSTALL_DIR/fluxstream"
@@ -34,5 +35,5 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
   echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> ~/.bashrc
 fi
 
-echo "FluxStream installed successfully!"
+echo "✅ FluxStream installed successfully!"
 "$INSTALL_DIR/fluxstream" --version || true

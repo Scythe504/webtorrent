@@ -35,10 +35,6 @@ services:
       - "8080:8080"
     volumes:
       - "{{DOWNLOAD_PATH}}:/app/fluxstream/download"
-    depends_on:
-      - postgres
-      - redis
-      - migrate
     networks:
       - fluxstream
     restart: unless-stopped

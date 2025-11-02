@@ -48,7 +48,7 @@ func Start() error {
 	}
 
 	// Start FluxStream containers
-	err = DockerCompose("-d")
+	err = DockerCompose("up", "-d")
 
 	printInfo("Running Docker Compose...")
 
