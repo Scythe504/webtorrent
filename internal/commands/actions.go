@@ -252,3 +252,50 @@ func Where() error {
 	PrintAccessURLs(port)
 	return nil
 }
+
+func Stop() error {
+	fmt.Println(colorize(colorBlue, "Stopping FluxStream...\n"))
+
+	// Check if Docker is installed
+	if !IsDockerInstalled() {
+		printError("Docker is not installed.")
+		fmt.Println("\nPlease install Docker first:")
+		printInfo("  https://docs.docker.com/desktop/#next-steps")
+		printInfo("  https://docs.docker.com/engine/")
+		return fmt.Errorf("docker not installed")
+	}
+
+	// Check if Docker daemon is running
+	if err := DockerInfo(); err != nil {
+		printError("Docker daemon is not running.")
+		fmt.Println("\nPlease start Docker and try again:")
+		fmt.Println("  - macOS/Windows: Open Docker Desktop")
+		fmt.Println("  - Linux: sudo systemctl start docker")
+		return fmt.Errorf("docker daemon not running: %v", err)
+	}
+
+	// Ensure docker-compose.yml exists
+	dockerComposeFilePath, err := getDockerComposeFilePath()
+	if err != nil {
+		printError("Failed to locate docker-compose.yml")
+		return err
+	}
+	if _, err := os.Stat(dockerComposeFilePath); os.IsNotExist(err) {
+		printError("docker-compose.yml not found. Run 'fluxstream setup' first.")
+		return fmt.Errorf("docker-compose.yml not found at %s", dockerComposeFilePath)
+	}
+
+	// Stop FluxStream containers
+	err = DockerCompose("down")
+
+	printInfo("Stopping Docker Compose...")
+
+	if err != nil {
+		printError(fmt.Sprintf("Failed to stop FluxStream: %v", err))
+		return err
+	}
+
+	printSuccess("fluxstream stopped successfully!")
+
+	return nil
+}

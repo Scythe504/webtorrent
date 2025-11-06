@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version = "0.1.0"
+	version = "0.1.3"
 )
 
 var rootCmd = &cobra.Command{
@@ -50,11 +50,20 @@ var whereCmd = &cobra.Command{
 	},
 }
 
+var stopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stops the Fluxstream server",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return commands.Stop()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(whereCmd)
+	rootCmd.AddCommand(stopCmd)
 }
 
 func main() {
